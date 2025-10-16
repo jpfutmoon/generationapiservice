@@ -1,10 +1,12 @@
 # ZUGFeRD API Service
 
-Microservice zur Erstellung von ZUGFeRD-PDFs für n8n Workflows.
+Microservice zur Generierung von PDFs und ZUGFeRD-konformen PDFs für n8n Workflows.
 
 ## Features
 
-- ✅ Konvertiert Standard-PDFs zu ZUGFeRD-konformen PDFs
+- ✅ **PDF Generierung** aus HTML/CSS
+- ✅ **ZUGFeRD Embedding** - Fügt XML zu bestehendem PDF hinzu
+- ✅ **Komplett-Workflow** - Generiert PDF + ZUGFeRD in einem Schritt
 - ✅ REST API für n8n Integration
 - ✅ Docker-ready mit Health Checks
 - ✅ Production-ready mit Gunicorn
@@ -22,8 +24,30 @@ Health Check für Monitoring und Docker
 }
 ```
 
+### `POST /generate-pdf`
+**NEU:** Generiert PDF aus HTML Content
+
+**Request:**
+```json
+{
+  "html_content": "<html><body><h1>Rechnung</h1></body></html>",
+  "css": "body { font-family: Arial; }",
+  "filename": "rechnung.pdf"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "pdf_base64": "JVBERi0xLjQKJe...",
+  "pdf_size": 45821,
+  "filename": "rechnung.pdf"
+}
+```
+
 ### `POST /generate`
-Generiert ZUGFeRD PDF aus PDF + XML
+Generiert ZUGFeRD PDF aus bestehendem PDF + XML
 
 **Request:**
 ```json
@@ -41,6 +65,29 @@ Generiert ZUGFeRD PDF aus PDF + XML
   "zugferd_pdf_base64": "JVBERi0xLjQKJe...",
   "pdf_size": 45821,
   "filename": "rechnung_123.pdf"
+}
+```
+
+### `POST /generate-complete`
+**NEU:** Generiert PDF aus HTML und fügt ZUGFeRD XML in einem Schritt hinzu
+
+**Request:**
+```json
+{
+  "html_content": "<html><body><h1>Rechnung</h1></body></html>",
+  "css": "body { font-family: Arial; }",
+  "xml_content": "<?xml version='1.0' encoding='UTF-8'?>...",
+  "filename": "rechnung_zugferd.pdf"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "zugferd_pdf_base64": "JVBERi0xLjQKJe...",
+  "pdf_size": 45821,
+  "filename": "rechnung_zugferd.pdf"
 }
 ```
 
@@ -74,28 +121,64 @@ python app.py
 
 ## Usage
 
-### cURL Beispiel
+### cURL Beispiele
 
+**PDF aus HTML generieren:**
+```bash
+curl -X POST http://localhost:5000/generate-pdf \
+  -H "Content-Type: application/json" \
+  -d '{
+    "html_content": "<html><body><h1>Test Rechnung</h1><p>Betrag: 100€</p></body></html>",
+    "css": "body { font-family: Arial; }",
+    "filename": "rechnung.pdf"
+  }'
+```
+
+**ZUGFeRD zu bestehendem PDF hinzufügen:**
 ```bash
 curl -X POST http://localhost:5000/generate \
   -H "Content-Type: application/json" \
   -d '{
     "pdf_base64": "JVBERi0xLjQKJeLjz9MK...",
     "xml_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rsm:CrossIndustryInvoice>...</rsm:CrossIndustryInvoice>",
-    "filename": "rechnung_2024_001.pdf"
+    "filename": "rechnung_zugferd.pdf"
+  }'
+```
+
+**Komplett-Workflow (PDF + ZUGFeRD):**
+```bash
+curl -X POST http://localhost:5000/generate-complete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "html_content": "<html><body><h1>Rechnung</h1></body></html>",
+    "xml_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...",
+    "filename": "rechnung_komplett.pdf"
   }'
 ```
 
 ### n8n Integration
 
-1. **HTTP Request Node** konfigurieren:
-   - Method: POST
-   - URL: `http://zugferd-api:5000/generate`
-   - Body: JSON
-   - JSON Beispiel:
+#### Workflow 1: Nur PDF generieren
+**HTTP Request Node:**
+- Method: POST
+- URL: `http://zugferd-api:5000/generate-pdf`
+- Body: JSON
 ```json
 {
-  "pdf_base64": "{{ $json.pdf_base64 }}",
+  "html_content": "{{ $json.html_content }}",
+  "css": "{{ $json.css }}",
+  "filename": "{{ $json.filename }}"
+}
+```
+
+#### Workflow 2: PDF + ZUGFeRD in einem Schritt
+**HTTP Request Node:**
+- Method: POST
+- URL: `http://zugferd-api:5000/generate-complete`
+- Body: JSON
+```json
+{
+  "html_content": "{{ $json.html_content }}",
   "xml_content": "{{ $json.xml_content }}",
   "filename": "{{ $json.filename }}"
 }
