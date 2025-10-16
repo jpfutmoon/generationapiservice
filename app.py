@@ -236,6 +236,47 @@ def generate_complete():
         logger.error(f'Error generating complete ZUGFeRD PDF: {str(e)}', exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/test', methods=['GET'])
+def test():
+    """Test endpoint to diagnose library issues"""
+    import sys
+    results = {
+        'python_version': sys.version,
+        'tests': {}
+    }
+
+    # Test 1: Import weasyprint
+    try:
+        from weasyprint import HTML, CSS
+        results['tests']['weasyprint_import'] = 'OK'
+    except Exception as e:
+        results['tests']['weasyprint_import'] = f'FAILED: {str(e)}'
+
+    # Test 2: Import pypdf
+    try:
+        from pypdf import PdfReader, PdfWriter
+        results['tests']['pypdf_import'] = 'OK'
+    except Exception as e:
+        results['tests']['pypdf_import'] = f'FAILED: {str(e)}'
+
+    # Test 3: Generate simple HTML to PDF
+    try:
+        from weasyprint import HTML
+        html = HTML(string='<html><body><h1>Test</h1></body></html>')
+        pdf_bytes = html.write_pdf()
+        results['tests']['html_to_pdf'] = f'OK ({len(pdf_bytes)} bytes)'
+    except Exception as e:
+        results['tests']['html_to_pdf'] = f'FAILED: {str(e)}'
+
+    # Test 4: Check lxml
+    try:
+        import lxml
+        results['tests']['lxml_version'] = lxml.__version__
+    except Exception as e:
+        results['tests']['lxml'] = f'FAILED: {str(e)}'
+
+    return jsonify(results), 200
+
 @app.route('/', methods=['GET'])
 def index():
     """Service information endpoint"""
@@ -244,6 +285,7 @@ def index():
         'version': '2.0.0',
         'endpoints': {
             'health': 'GET /health',
+            'test': 'GET /test - Test library compatibility',
             'generate_pdf': 'POST /generate-pdf - Generate PDF from HTML',
             'generate_zugferd': 'POST /generate - Add ZUGFeRD XML to existing PDF',
             'generate_complete': 'POST /generate-complete - Generate PDF + ZUGFeRD in one step',
