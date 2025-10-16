@@ -1,22 +1,22 @@
 # ZUGFeRD API Service
 
-Microservice zur Generierung von PDFs und ZUGFeRD-konformen PDFs für n8n Workflows.
+Microservice for generating PDFs and ZUGFeRD-compliant PDFs for n8n workflows.
 
 ## Features
 
-- ✅ **PDF Generierung** aus HTML/CSS
-- ✅ **ZUGFeRD Embedding** - Fügt XML zu bestehendem PDF hinzu
-- ✅ **Komplett-Workflow** - Generiert PDF + ZUGFeRD in einem Schritt
-- ✅ REST API für n8n Integration
-- ✅ Docker-ready mit Health Checks
-- ✅ Production-ready mit Gunicorn
+- ✅ **PDF Generation** from HTML/CSS
+- ✅ **ZUGFeRD Embedding** - Add XML to existing PDFs
+- ✅ **Complete Workflow** - Generate PDF + ZUGFeRD in one step
+- ✅ REST API for n8n integration
+- ✅ Docker-ready with health checks
+- ✅ Production-ready with Gunicorn
 
 ## API Endpoints
 
 ### `GET /health`
-**Health Check Endpoint** - Prüft ob der Service läuft
+**Health Check Endpoint** - Checks if the service is running
 
-**Verwendung:** Monitoring, Docker Health Checks, Load Balancer
+**Usage:** Monitoring, Docker health checks, load balancers
 
 **Response:**
 ```json
@@ -31,24 +31,24 @@ Microservice zur Generierung von PDFs und ZUGFeRD-konformen PDFs für n8n Workfl
 ---
 
 ### `POST /generate-pdf`
-**PDF aus HTML generieren** - Konvertiert HTML/CSS zu einem PDF-Dokument
+**Generate PDF from HTML** - Converts HTML/CSS to a PDF document
 
-**Beschreibung:**
-Dieser Endpoint generiert ein standardkonformes PDF aus HTML-Content. Ideal für die Erstellung von Rechnungen, Berichten oder anderen Dokumenten aus HTML-Templates.
+**Description:**
+This endpoint generates a standards-compliant PDF from HTML content. Ideal for creating invoices, reports, or other documents from HTML templates.
 
 **Request Body (JSON):**
 ```json
 {
-  "html_content": "<html><body><h1>Rechnung Nr. 2024-001</h1><p>Betrag: 1.234,56 €</p></body></html>",
+  "html_content": "<html><body><h1>Invoice No. 2024-001</h1><p>Amount: $1,234.56</p></body></html>",
   "css": "body { font-family: Arial, sans-serif; margin: 20px; } h1 { color: #333; }",
-  "filename": "rechnung_2024_001.pdf"
+  "filename": "invoice_2024_001.pdf"
 }
 ```
 
-**Parameter:**
-- `html_content` (string, **erforderlich**): Vollständiger HTML-Code als String
-- `css` (string, optional): CSS-Styles als String
-- `filename` (string, optional): Dateiname für das generierte PDF (Standard: "document.pdf")
+**Parameters:**
+- `html_content` (string, **required**): Complete HTML code as string
+- `css` (string, optional): CSS styles as string
+- `filename` (string, optional): Filename for the generated PDF (default: "document.pdf")
 
 **Response (Success):**
 ```json
@@ -56,44 +56,44 @@ Dieser Endpoint generiert ein standardkonformes PDF aus HTML-Content. Ideal für
   "success": true,
   "pdf_base64": "JVBERi0xLjQKJe...",
   "pdf_size": 45821,
-  "filename": "rechnung_2024_001.pdf"
+  "filename": "invoice_2024_001.pdf"
 }
 ```
 
-**Response Felder:**
-- `success` (boolean): `true` bei Erfolg
-- `pdf_base64` (string): Base64-kodiertes PDF
-- `pdf_size` (integer): Größe des PDFs in Bytes
-- `filename` (string): Dateiname des generierten PDFs
+**Response Fields:**
+- `success` (boolean): `true` on success
+- `pdf_base64` (string): Base64-encoded PDF
+- `pdf_size` (integer): Size of PDF in bytes
+- `filename` (string): Filename of the generated PDF
 
-**HTTP Status:** `200 OK` bei Erfolg, `400 Bad Request` bei fehlenden Parametern, `500 Internal Server Error` bei Verarbeitungsfehlern
+**HTTP Status:** `200 OK` on success, `400 Bad Request` for missing parameters, `500 Internal Server Error` for processing errors
 
 **Use Cases:**
-- Rechnungen aus HTML-Templates generieren
-- Berichte als PDF exportieren
-- Lieferscheine oder Angebote erstellen
+- Generate invoices from HTML templates
+- Export reports as PDF
+- Create delivery notes or quotes
 
 ---
 
 ### `POST /generate`
-**ZUGFeRD XML zu bestehendem PDF hinzufügen** - Konvertiert ein Standard-PDF zu einem ZUGFeRD-konformen PDF
+**Add ZUGFeRD XML to existing PDF** - Converts a standard PDF to a ZUGFeRD-compliant PDF
 
-**Beschreibung:**
-Dieser Endpoint fügt strukturierte ZUGFeRD-XML-Daten zu einem bereits existierenden PDF hinzu und erstellt damit eine maschinenlesbare, elektronische Rechnung nach dem ZUGFeRD-Standard (EN 16931).
+**Description:**
+This endpoint adds structured ZUGFeRD XML data to an existing PDF, creating a machine-readable electronic invoice according to the ZUGFeRD standard (EN 16931).
 
 **Request Body (JSON):**
 ```json
 {
   "pdf_base64": "JVBERi0xLjQKJeLjz9MK...",
   "xml_content": "<?xml version='1.0' encoding='UTF-8'?><rsm:CrossIndustryInvoice xmlns:rsm=\"urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100\">...</rsm:CrossIndustryInvoice>",
-  "filename": "rechnung_zugferd_2024_001.pdf"
+  "filename": "invoice_zugferd_2024_001.pdf"
 }
 ```
 
-**Parameter:**
-- `pdf_base64` (string, **erforderlich**): Base64-kodiertes PDF-Dokument
-- `xml_content` (string, **erforderlich**): ZUGFeRD/Factur-X XML als String (EN 16931 konform)
-- `filename` (string, optional): Dateiname für das ZUGFeRD-PDF (Standard: "zugferd.pdf")
+**Parameters:**
+- `pdf_base64` (string, **required**): Base64-encoded PDF document
+- `xml_content` (string, **required**): ZUGFeRD/Factur-X XML as string (EN 16931 compliant)
+- `filename` (string, optional): Filename for the ZUGFeRD PDF (default: "zugferd.pdf")
 
 **Response (Success):**
 ```json
@@ -101,51 +101,51 @@ Dieser Endpoint fügt strukturierte ZUGFeRD-XML-Daten zu einem bereits existiere
   "success": true,
   "zugferd_pdf_base64": "JVBERi0xLjQKJe...",
   "pdf_size": 48234,
-  "filename": "rechnung_zugferd_2024_001.pdf"
+  "filename": "invoice_zugferd_2024_001.pdf"
 }
 ```
 
-**Response Felder:**
-- `success` (boolean): `true` bei Erfolg
-- `zugferd_pdf_base64` (string): Base64-kodiertes ZUGFeRD-PDF
-- `pdf_size` (integer): Größe des ZUGFeRD-PDFs in Bytes
-- `filename` (string): Dateiname des generierten ZUGFeRD-PDFs
+**Response Fields:**
+- `success` (boolean): `true` on success
+- `zugferd_pdf_base64` (string): Base64-encoded ZUGFeRD PDF
+- `pdf_size` (integer): Size of ZUGFeRD PDF in bytes
+- `filename` (string): Filename of the generated ZUGFeRD PDF
 
-**Technische Details:**
-- Embedded File: XML wird als `factur-x.xml` im PDF eingebettet
-- PDF/A-3 Metadaten werden hinzugefügt
-- Kompatibel mit ZUGFeRD 2.x und Factur-X Standards
+**Technical Details:**
+- Embedded File: XML is embedded as `factur-x.xml` in the PDF
+- PDF/A-3 metadata is added
+- Compatible with ZUGFeRD 2.x and Factur-X standards
 
-**HTTP Status:** `200 OK` bei Erfolg, `400 Bad Request` bei fehlenden/ungültigen Parametern, `500 Internal Server Error` bei Verarbeitungsfehlern
+**HTTP Status:** `200 OK` on success, `400 Bad Request` for missing/invalid parameters, `500 Internal Server Error` for processing errors
 
 **Use Cases:**
-- Bestehende PDF-Rechnungen ZUGFeRD-konform machen
-- Maschinenlesbare Rechnungen für E-Invoicing erstellen
-- Compliance mit deutschen E-Rechnungs-Anforderungen (ab 2025)
+- Make existing PDF invoices ZUGFeRD-compliant
+- Create machine-readable invoices for e-invoicing
+- Compliance with German e-invoice requirements (from 2025)
 
 ---
 
 ### `POST /generate-complete`
-**PDF + ZUGFeRD in einem Schritt** - Generiert ein ZUGFeRD-PDF direkt aus HTML und XML
+**PDF + ZUGFeRD in one step** - Generates a ZUGFeRD PDF directly from HTML and XML
 
-**Beschreibung:**
-Dieser Endpoint kombiniert beide Funktionen: Generiert zuerst ein PDF aus HTML/CSS und fügt dann sofort die ZUGFeRD-XML-Daten hinzu. Ideal für End-to-End Workflows ohne Zwischenschritte.
+**Description:**
+This endpoint combines both functions: first generates a PDF from HTML/CSS, then immediately adds the ZUGFeRD XML data. Ideal for end-to-end workflows without intermediate steps.
 
 **Request Body (JSON):**
 ```json
 {
-  "html_content": "<html><body><h1>Rechnung Nr. 2024-001</h1><table>...</table></body></html>",
+  "html_content": "<html><body><h1>Invoice No. 2024-001</h1><table>...</table></body></html>",
   "css": "body { font-family: Arial; } table { border-collapse: collapse; width: 100%; }",
   "xml_content": "<?xml version='1.0' encoding='UTF-8'?><rsm:CrossIndustryInvoice>...</rsm:CrossIndustryInvoice>",
-  "filename": "rechnung_komplett_2024_001.pdf"
+  "filename": "invoice_complete_2024_001.pdf"
 }
 ```
 
-**Parameter:**
-- `html_content` (string, **erforderlich**): Vollständiger HTML-Code für die visuelle Rechnung
-- `xml_content` (string, **erforderlich**): ZUGFeRD/Factur-X XML-Daten (EN 16931 konform)
-- `css` (string, optional): CSS-Styles als String
-- `filename` (string, optional): Dateiname für das ZUGFeRD-PDF (Standard: "zugferd.pdf")
+**Parameters:**
+- `html_content` (string, **required**): Complete HTML code for the visual invoice
+- `xml_content` (string, **required**): ZUGFeRD/Factur-X XML data (EN 16931 compliant)
+- `css` (string, optional): CSS styles as string
+- `filename` (string, optional): Filename for the ZUGFeRD PDF (default: "zugferd.pdf")
 
 **Response (Success):**
 ```json
@@ -153,33 +153,33 @@ Dieser Endpoint kombiniert beide Funktionen: Generiert zuerst ein PDF aus HTML/C
   "success": true,
   "zugferd_pdf_base64": "JVBERi0xLjQKJe...",
   "pdf_size": 52103,
-  "filename": "rechnung_komplett_2024_001.pdf"
+  "filename": "invoice_complete_2024_001.pdf"
 }
 ```
 
-**Response Felder:**
-- `success` (boolean): `true` bei Erfolg
-- `zugferd_pdf_base64` (string): Base64-kodiertes ZUGFeRD-PDF
-- `pdf_size` (integer): Größe des finalen PDFs in Bytes
-- `filename` (string): Dateiname des generierten ZUGFeRD-PDFs
+**Response Fields:**
+- `success` (boolean): `true` on success
+- `zugferd_pdf_base64` (string): Base64-encoded ZUGFeRD PDF
+- `pdf_size` (integer): Size of the final PDF in bytes
+- `filename` (string): Filename of the generated ZUGFeRD PDF
 
 **Workflow:**
-1. HTML/CSS wird zu PDF konvertiert (via WeasyPrint)
-2. ZUGFeRD-XML wird als Attachment eingebettet (via pypdf)
-3. PDF/A-3 Metadaten werden gesetzt
-4. Finales ZUGFeRD-PDF wird zurückgegeben
+1. HTML/CSS is converted to PDF (via WeasyPrint)
+2. ZUGFeRD XML is embedded as attachment (via pypdf)
+3. PDF/A-3 metadata is set
+4. Final ZUGFeRD PDF is returned
 
-**HTTP Status:** `200 OK` bei Erfolg, `400 Bad Request` bei fehlenden/ungültigen Parametern, `500 Internal Server Error` bei Verarbeitungsfehlern
+**HTTP Status:** `200 OK` on success, `400 Bad Request` for missing/invalid parameters, `500 Internal Server Error` for processing errors
 
 **Use Cases:**
-- Komplette ZUGFeRD-Rechnungen aus einem n8n Workflow erstellen
-- Automatisierte E-Invoicing-Lösung
-- Integration in ERP/Warenwirtschaftssysteme
+- Create complete ZUGFeRD invoices from an n8n workflow
+- Automated e-invoicing solution
+- Integration with ERP/business management systems
 
 ---
 
 ### `GET /`
-**Service Information** - Zeigt verfügbare Endpoints und Version
+**Service Information** - Shows available endpoints and version
 
 **Response:**
 ```json
@@ -200,10 +200,10 @@ Dieser Endpoint kombiniert beide Funktionen: Generiert zuerst ein PDF aus HTML/C
 ---
 
 ### `GET /test`
-**Diagnose-Endpoint** - Testet Library-Kompatibilität
+**Diagnostic Endpoint** - Tests library compatibility
 
-**Beschreibung:**
-Interner Test-Endpoint um die Funktionalität aller verwendeten Libraries zu prüfen.
+**Description:**
+Internal test endpoint to verify the functionality of all used libraries.
 
 **Response:**
 ```json
@@ -220,7 +220,7 @@ Interner Test-Endpoint um die Funktionalität aller verwendeten Libraries zu pr�
 
 ## Installation
 
-### Docker (empfohlen)
+### Docker (Recommended)
 
 ```bash
 # Build
@@ -233,56 +233,56 @@ docker run -d -p 5000:5000 --name zugferd-api zugferd-api
 curl http://localhost:5000/health
 ```
 
-### Lokal
+### Local
 
 ```bash
-# Dependencies installieren
+# Install dependencies
 pip install -r requirements.txt
 
-# Server starten
+# Start server
 python app.py
 ```
 
 ## Usage
 
-### cURL Beispiele
+### cURL Examples
 
-**PDF aus HTML generieren:**
+**Generate PDF from HTML:**
 ```bash
 curl -X POST http://localhost:5000/generate-pdf \
   -H "Content-Type: application/json" \
   -d '{
-    "html_content": "<html><body><h1>Test Rechnung</h1><p>Betrag: 100€</p></body></html>",
+    "html_content": "<html><body><h1>Test Invoice</h1><p>Amount: $100</p></body></html>",
     "css": "body { font-family: Arial; }",
-    "filename": "rechnung.pdf"
+    "filename": "invoice.pdf"
   }'
 ```
 
-**ZUGFeRD zu bestehendem PDF hinzufügen:**
+**Add ZUGFeRD to existing PDF:**
 ```bash
 curl -X POST http://localhost:5000/generate \
   -H "Content-Type: application/json" \
   -d '{
     "pdf_base64": "JVBERi0xLjQKJeLjz9MK...",
     "xml_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rsm:CrossIndustryInvoice>...</rsm:CrossIndustryInvoice>",
-    "filename": "rechnung_zugferd.pdf"
+    "filename": "invoice_zugferd.pdf"
   }'
 ```
 
-**Komplett-Workflow (PDF + ZUGFeRD):**
+**Complete workflow (PDF + ZUGFeRD):**
 ```bash
 curl -X POST http://localhost:5000/generate-complete \
   -H "Content-Type: application/json" \
   -d '{
-    "html_content": "<html><body><h1>Rechnung</h1></body></html>",
+    "html_content": "<html><body><h1>Invoice</h1></body></html>",
     "xml_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...",
-    "filename": "rechnung_komplett.pdf"
+    "filename": "invoice_complete.pdf"
   }'
 ```
 
 ### n8n Integration
 
-#### Workflow 1: Nur PDF generieren
+#### Workflow 1: Generate PDF only
 **HTTP Request Node:**
 - Method: POST
 - URL: `http://zugferd-api:5000/generate-pdf`
@@ -295,7 +295,7 @@ curl -X POST http://localhost:5000/generate-complete \
 }
 ```
 
-#### Workflow 2: PDF + ZUGFeRD in einem Schritt
+#### Workflow 2: PDF + ZUGFeRD in one step
 **HTTP Request Node:**
 - Method: POST
 - URL: `http://zugferd-api:5000/generate-complete`
@@ -329,7 +329,7 @@ services:
 
 ### Environment Variables
 
-Keine Environment Variables erforderlich. Service ist sofort einsatzbereit.
+No environment variables required. Service is ready to use immediately.
 
 ## Development
 
@@ -344,7 +344,7 @@ flask run --host=0.0.0.0 --port=5000
 
 ## Error Handling
 
-Alle Fehler werden mit entsprechenden HTTP Status Codes zurückgegeben:
+All errors are returned with appropriate HTTP status codes:
 
 - `400` - Invalid request (missing parameters, invalid base64)
 - `500` - Server error (PDF generation failed)
@@ -355,4 +355,4 @@ Proprietary - futalis GmbH
 
 ## Support
 
-Bei Fragen: IT Team futalis GmbH
+For questions: IT Team futalis GmbH
