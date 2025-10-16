@@ -55,20 +55,33 @@ def generate_zugferd():
         # Convert XML to bytes
         xml_bytes = xml_content.encode('utf-8')
 
-        # Lazy import to avoid conflicts with WeasyPrint
-        from facturx import generate_facturx_from_binary
+        # Import pypdf for ZUGFeRD embedding
+        from pypdf import PdfReader, PdfWriter
+        from io import BytesIO
 
-        # Generate ZUGFeRD PDF
-        zugferd_pdf_bytes = generate_facturx_from_binary(
-            pdf_bytes,
-            xml_bytes,
-            flavor='factur-x',
-            level='extended',
-            pdf_metadata={
-                'author': 'futalis GmbH',
-                'title': 'ZUGFeRD Rechnung'
-            }
-        )
+        # Read the original PDF
+        pdf_reader = PdfReader(BytesIO(pdf_bytes))
+        pdf_writer = PdfWriter()
+
+        # Copy all pages
+        for page in pdf_reader.pages:
+            pdf_writer.add_page(page)
+
+        # Attach ZUGFeRD XML as embedded file
+        pdf_writer.add_attachment("factur-x.xml", xml_bytes)
+
+        # Set PDF/A-3 metadata for ZUGFeRD compliance
+        pdf_writer.add_metadata({
+            '/Title': 'ZUGFeRD Rechnung',
+            '/Author': 'futalis GmbH',
+            '/Subject': 'ZUGFeRD Invoice',
+            '/Producer': 'futalis ZUGFeRD Generator'
+        })
+
+        # Write to bytes
+        output = BytesIO()
+        pdf_writer.write(output)
+        zugferd_pdf_bytes = output.getvalue()
 
         # Encode result to base64
         zugferd_base64 = base64.b64encode(zugferd_pdf_bytes).decode('utf-8')
@@ -179,19 +192,33 @@ def generate_complete():
         # Step 2: Embed ZUGFeRD XML
         xml_bytes = xml_content.encode('utf-8')
 
-        # Lazy import to avoid conflicts with WeasyPrint
-        from facturx import generate_facturx_from_binary
+        # Import pypdf for ZUGFeRD embedding
+        from pypdf import PdfReader, PdfWriter
+        from io import BytesIO
 
-        zugferd_pdf_bytes = generate_facturx_from_binary(
-            pdf_bytes,
-            xml_bytes,
-            flavor='factur-x',
-            level='extended',
-            pdf_metadata={
-                'author': 'futalis GmbH',
-                'title': 'ZUGFeRD Rechnung'
-            }
-        )
+        # Read the generated PDF
+        pdf_reader = PdfReader(BytesIO(pdf_bytes))
+        pdf_writer = PdfWriter()
+
+        # Copy all pages
+        for page in pdf_reader.pages:
+            pdf_writer.add_page(page)
+
+        # Attach ZUGFeRD XML as embedded file
+        pdf_writer.add_attachment("factur-x.xml", xml_bytes)
+
+        # Set PDF/A-3 metadata for ZUGFeRD compliance
+        pdf_writer.add_metadata({
+            '/Title': 'ZUGFeRD Rechnung',
+            '/Author': 'futalis GmbH',
+            '/Subject': 'ZUGFeRD Invoice',
+            '/Producer': 'futalis ZUGFeRD Generator'
+        })
+
+        # Write to bytes
+        output = BytesIO()
+        pdf_writer.write(output)
+        zugferd_pdf_bytes = output.getvalue()
 
         # Encode to base64
         zugferd_base64 = base64.b64encode(zugferd_pdf_bytes).decode('utf-8')
