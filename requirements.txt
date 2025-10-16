@@ -1,6 +1,6 @@
 flask==3.0.0
-factur-x==2.5
-PyPDF2==2.12.1
+factur-x==1.12
+PyPDF2==1.28.6
 gunicorn==21.2.0
 requests==2.31.0
 weasyprint==60.2
