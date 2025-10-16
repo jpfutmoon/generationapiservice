@@ -112,7 +112,9 @@ def generate_pdf():
     }
     """
     try:
+        logger.info('=== generate_pdf called ===')
         data = request.get_json()
+        logger.info(f'Request data keys: {data.keys() if data else "None"}')
 
         if not data:
             return jsonify({'success': False, 'error': 'JSON body required'}), 400
@@ -121,6 +123,8 @@ def generate_pdf():
         css = data.get('css', '')
         filename = data.get('filename', 'document.pdf')
 
+        logger.info(f'html_content length: {len(html_content)}, css length: {len(css)}')
+
         if not html_content:
             return jsonify({
                 'success': False,
@@ -128,12 +132,18 @@ def generate_pdf():
             }), 400
 
         # Generate PDF from HTML
+        logger.info('Creating HTML object...')
         html_obj = HTML(string=html_content)
 
+        logger.info(f'Generating PDF (with CSS: {bool(css)})...')
         if css:
-            pdf_bytes = html_obj.write_pdf(stylesheets=[CSS(string=css)])
+            # Create CSS stylesheet separately
+            css_obj = CSS(string=css)
+            pdf_bytes = html_obj.write_pdf(stylesheets=[css_obj])
         else:
             pdf_bytes = html_obj.write_pdf()
+
+        logger.info(f'PDF generated: {len(pdf_bytes)} bytes')
 
         # Encode to base64
         pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
