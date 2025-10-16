@@ -2,7 +2,6 @@
 from flask import Flask, request, jsonify
 import base64
 import logging
-from facturx import generate_facturx_from_binary
 from weasyprint import HTML, CSS
 from jinja2 import Template
 import io
@@ -55,6 +54,9 @@ def generate_zugferd():
 
         # Convert XML to bytes
         xml_bytes = xml_content.encode('utf-8')
+
+        # Lazy import to avoid conflicts with WeasyPrint
+        from facturx import generate_facturx_from_binary
 
         # Generate ZUGFeRD PDF
         zugferd_pdf_bytes = generate_facturx_from_binary(
@@ -176,6 +178,9 @@ def generate_complete():
 
         # Step 2: Embed ZUGFeRD XML
         xml_bytes = xml_content.encode('utf-8')
+
+        # Lazy import to avoid conflicts with WeasyPrint
+        from facturx import generate_facturx_from_binary
 
         zugferd_pdf_bytes = generate_facturx_from_binary(
             pdf_bytes,
