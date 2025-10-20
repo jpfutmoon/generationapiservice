@@ -28,10 +28,14 @@ def generate_zugferd():
     }
     """
     try:
-        data = request.get_json()
+        # Accept both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
 
         if not data:
-            return jsonify({'success': False, 'error': 'JSON body required'}), 400
+            return jsonify({'success': False, 'error': 'Request body required'}), 400
 
         pdf_base64 = data.get('pdf_base64', '')
         xml_content = data.get('xml_content', '')
