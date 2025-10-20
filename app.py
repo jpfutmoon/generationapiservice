@@ -1119,5 +1119,129 @@ def index():
         ]
     }), 200
 
+@app.route('/merge-pdf', methods=['POST'])
+def merge_pdf():
+    """
+    Merge multiple PDFs into a single PDF
+
+    Accepts both JSON and form data.
+
+    Expected body:
+    {
+        "pdf_files": [
+            {"pdf_base64": "base64 data", "name": "optional name"},
+            {"pdf_base64": "base64 data", "name": "optional name"}
+        ],
+        "filename": "merged.pdf" (optional)
+    }
+
+    OR send as form data with pdf_1_base64, pdf_2_base64, etc.
+    """
+    try:
+        logger.info('=== merge_pdf called ===')
+
+        # Accept both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+
+        if not data:
+            return jsonify({'success': False, 'error': 'Request body required'}), 400
+
+        filename = data.get('filename', 'merged.pdf')
+
+        # Collect PDF base64 data
+        pdf_list = []
+
+        # Option 1: JSON with pdf_files array
+        if 'pdf_files' in data and isinstance(data['pdf_files'], list):
+            for pdf_item in data['pdf_files']:
+                if isinstance(pdf_item, dict) and 'pdf_base64' in pdf_item:
+                    pdf_list.append({
+                        'data': pdf_item['pdf_base64'],
+                        'name': pdf_item.get('name', f'PDF {len(pdf_list) + 1}')
+                    })
+
+        # Option 2: Form data with pdf_1_base64, pdf_2_base64, etc.
+        else:
+            i = 1
+            while f'pdf_{i}_base64' in data:
+                pdf_list.append({
+                    'data': data[f'pdf_{i}_base64'],
+                    'name': data.get(f'pdf_{i}_name', f'PDF {i}')
+                })
+                i += 1
+
+        if len(pdf_list) == 0:
+            return jsonify({
+                'success': False,
+                'error': 'No PDF files provided. Use pdf_files array or pdf_1_base64, pdf_2_base64, etc.'
+            }), 400
+
+        if len(pdf_list) == 1:
+            logger.warning('Only one PDF provided, returning it unchanged')
+            return jsonify({
+                'success': True,
+                'pdf_base64': pdf_list[0]['data'],
+                'pdf_size': len(base64.b64decode(pdf_list[0]['data'])),
+                'filename': filename,
+                'pages_merged': 1
+            }), 200
+
+        logger.info(f'Merging {len(pdf_list)} PDFs')
+
+        # Import pypdf for merging
+        from pypdf import PdfReader, PdfWriter
+        from io import BytesIO
+
+        pdf_writer = PdfWriter()
+        total_pages = 0
+
+        # Merge all PDFs
+        for idx, pdf_item in enumerate(pdf_list):
+            try:
+                # Decode base64
+                pdf_bytes = base64.b64decode(pdf_item['data'])
+                pdf_reader = PdfReader(BytesIO(pdf_bytes))
+
+                # Add all pages from this PDF
+                page_count = len(pdf_reader.pages)
+                for page in pdf_reader.pages:
+                    pdf_writer.add_page(page)
+
+                total_pages += page_count
+                logger.info(f'Added {page_count} pages from {pdf_item["name"]}')
+
+            except Exception as e:
+                logger.error(f'Error processing PDF {idx + 1} ({pdf_item["name"]}): {str(e)}')
+                return jsonify({
+                    'success': False,
+                    'error': f'Failed to process PDF {idx + 1} ({pdf_item["name"]}): {str(e)}'
+                }), 400
+
+        # Write merged PDF to bytes
+        output = BytesIO()
+        pdf_writer.write(output)
+        merged_pdf_bytes = output.getvalue()
+
+        # Encode to base64
+        merged_base64 = base64.b64encode(merged_pdf_bytes).decode('utf-8')
+
+        logger.info(f'Successfully merged {len(pdf_list)} PDFs into {total_pages} pages ({len(merged_pdf_bytes)} bytes)')
+
+        return jsonify({
+            'success': True,
+            'pdf_base64': merged_base64,
+            'pdf_size': len(merged_pdf_bytes),
+            'filename': filename,
+            'pdfs_merged': len(pdf_list),
+            'total_pages': total_pages
+        }), 200
+
+    except Exception as e:
+        logger.error(f'Error merging PDFs: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
