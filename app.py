@@ -362,6 +362,178 @@ def test_pdf_generation():
             'message': 'PDF generation is not working'
         }), 500
 
+@app.route('/image-to-pdf', methods=['POST'])
+def image_to_pdf():
+    """
+    Convert image directly to PDF (supports all formats including HEIC)
+
+    Accepts both JSON and form data.
+
+    Expected body:
+    {
+        "image_base64": "base64 encoded image",
+        "filename": "optional filename",
+        "page_size": "A4|Letter|A3" (optional, default: A4),
+        "fit": "contain|cover|stretch" (optional, default: contain),
+        "orientation": "portrait|landscape" (optional, default: portrait)
+    }
+    """
+    try:
+        logger.info('=== image_to_pdf called ===')
+
+        # Accept both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+
+        if not data or 'image_base64' not in data:
+            return jsonify({'success': False, 'error': 'image_base64 required'}), 400
+
+        image_base64 = data.get('image_base64', '')
+        filename = data.get('filename', 'image.pdf')
+        page_size = data.get('page_size', 'A4').upper()
+        fit_mode = data.get('fit', 'contain')
+        orientation = data.get('orientation', 'portrait')
+
+        logger.info(f'Converting image to PDF: page_size={page_size}, fit={fit_mode}, orientation={orientation}')
+
+        # Decode base64 image
+        try:
+            image_bytes = base64.b64decode(image_base64)
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid base64 image: {str(e)}'
+            }), 400
+
+        from PIL import Image
+        from io import BytesIO
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import A4, LETTER, A3, landscape, portrait
+        from reportlab.lib.utils import ImageReader
+
+        # Try to register HEIF support
+        try:
+            from pillow_heif import register_heif_opener
+            register_heif_opener()
+            logger.info('HEIF support enabled')
+        except Exception as e:
+            logger.warning(f'HEIF support not available: {str(e)}')
+
+        # Open image with Pillow (supports HEIC, PNG, JPEG, etc.)
+        try:
+            img = Image.open(BytesIO(image_bytes))
+
+            # Convert to RGB if necessary (for RGBA, CMYK, etc.)
+            if img.mode not in ('RGB', 'L'):
+                logger.info(f'Converting image from {img.mode} to RGB')
+                img = img.convert('RGB')
+
+            img_width, img_height = img.size
+            logger.info(f'Image size: {img_width}x{img_height}, mode: {img.mode}')
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to open image: {str(e)}. Format may not be supported.'
+            }), 400
+
+        # Define page sizes
+        page_sizes = {
+            'A4': A4,
+            'LETTER': LETTER,
+            'A3': A3
+        }
+
+        base_page_size = page_sizes.get(page_size, A4)
+
+        # Apply orientation
+        if orientation == 'landscape':
+            page_width, page_height = landscape(base_page_size)
+        else:
+            page_width, page_height = portrait(base_page_size)
+
+        logger.info(f'PDF page size: {page_width}x{page_height}')
+
+        # Calculate image placement based on fit mode
+        if fit_mode == 'contain':
+            # Fit image within page maintaining aspect ratio
+            img_aspect = img_width / img_height
+            page_aspect = page_width / page_height
+
+            if img_aspect > page_aspect:
+                # Image is wider - fit to width
+                draw_width = page_width
+                draw_height = page_width / img_aspect
+                x = 0
+                y = (page_height - draw_height) / 2
+            else:
+                # Image is taller - fit to height
+                draw_height = page_height
+                draw_width = page_height * img_aspect
+                x = (page_width - draw_width) / 2
+                y = 0
+
+        elif fit_mode == 'cover':
+            # Fill entire page, may crop image
+            img_aspect = img_width / img_height
+            page_aspect = page_width / page_height
+
+            if img_aspect < page_aspect:
+                # Image is taller - fit to width
+                draw_width = page_width
+                draw_height = page_width / img_aspect
+                x = 0
+                y = (page_height - draw_height) / 2
+            else:
+                # Image is wider - fit to height
+                draw_height = page_height
+                draw_width = page_height * img_aspect
+                x = (page_width - draw_width) / 2
+                y = 0
+
+        else:  # stretch
+            # Stretch to fill page (may distort)
+            draw_width = page_width
+            draw_height = page_height
+            x = 0
+            y = 0
+
+        # Create PDF with image
+        packet = BytesIO()
+        pdf_canvas = canvas.Canvas(packet, pagesize=(page_width, page_height))
+
+        # Convert PIL Image to something reportlab can use
+        img_buffer = BytesIO()
+        img.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+
+        # Draw image on canvas
+        pdf_canvas.drawImage(ImageReader(img_buffer), x, y, width=draw_width, height=draw_height)
+        pdf_canvas.save()
+
+        # Get PDF bytes
+        packet.seek(0)
+        pdf_bytes = packet.getvalue()
+
+        # Encode to base64
+        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+
+        logger.info(f'Successfully converted image to PDF: {filename} ({len(pdf_bytes)} bytes)')
+
+        return jsonify({
+            'success': True,
+            'pdf_base64': pdf_base64,
+            'pdf_size': len(pdf_bytes),
+            'filename': filename,
+            'image_dimensions': {'width': img_width, 'height': img_height},
+            'page_dimensions': {'width': float(page_width), 'height': float(page_height)}
+        }), 200
+
+    except Exception as e:
+        logger.error(f'Error converting image to PDF: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/pdf/merge', methods=['POST'])
 def merge_pdfs():
     """
@@ -877,6 +1049,7 @@ def index():
             'info': 'GET / - Service information',
             'zugferd': {
                 'generate_pdf': 'POST /generate-pdf - Generate PDF from HTML',
+                'image_to_pdf': 'POST /image-to-pdf - Convert image to PDF (supports HEIC, PNG, JPEG, etc.)',
                 'generate_zugferd': 'POST /generate - Add ZUGFeRD XML to existing PDF',
                 'generate_complete': 'POST /generate-complete - Generate PDF + ZUGFeRD in one step'
             },
