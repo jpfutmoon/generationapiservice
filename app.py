@@ -375,7 +375,9 @@ def image_to_pdf():
         "filename": "optional filename",
         "page_size": "A4|Letter|A3" (optional, default: A4),
         "fit": "contain|cover|stretch" (optional, default: contain),
-        "orientation": "portrait|landscape" (optional, default: portrait)
+        "orientation": "portrait|landscape" (optional, default: portrait),
+        "max_dimension": integer (optional, max width/height in pixels, default: 2400),
+        "quality": 1-100 (optional, JPEG quality %, default: 85)
     }
     """
     try:
@@ -396,7 +398,14 @@ def image_to_pdf():
         fit_mode = data.get('fit', 'contain')
         orientation = data.get('orientation', 'portrait')
 
-        logger.info(f'Converting image to PDF: page_size={page_size}, fit={fit_mode}, orientation={orientation}')
+        # Optimization parameters (optional)
+        max_dimension = int(data.get('max_dimension', 2400))  # Max width/height in pixels
+        quality = int(data.get('quality', 85))  # JPEG quality 1-100
+
+        # Validate quality parameter
+        quality = max(1, min(100, quality))  # Clamp between 1-100
+
+        logger.info(f'Converting image to PDF: page_size={page_size}, fit={fit_mode}, orientation={orientation}, max_dimension={max_dimension}, quality={quality}')
 
         # Decode base64 image
         try:
@@ -512,8 +521,28 @@ def image_to_pdf():
         pdf_canvas = canvas.Canvas(packet, pagesize=(page_width, page_height))
 
         # Convert PIL Image to something reportlab can use
+        # Optimize: Use JPEG for photos, PNG for graphics
         img_buffer = BytesIO()
-        img.save(img_buffer, format='PNG')
+
+        # Determine optimal format and quality
+        if img.mode == 'RGB' or img.mode == 'L':
+            # For photos, use JPEG with configurable quality optimization
+            # Scale down if image is very large (based on max_dimension parameter)
+            if max_dimension > 0 and (img_width > max_dimension or img_height > max_dimension):
+                ratio = min(max_dimension / img_width, max_dimension / img_height)
+                new_width = int(img_width * ratio)
+                new_height = int(img_height * ratio)
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                logger.info(f'Resized image from {img_width}x{img_height} to {new_width}x{new_height}')
+                img_width, img_height = new_width, new_height
+
+            img.save(img_buffer, format='JPEG', quality=quality, optimize=True)
+            logger.info(f'Saved as optimized JPEG (quality={quality})')
+        else:
+            # For graphics/transparency, use PNG
+            img.save(img_buffer, format='PNG', optimize=True)
+            logger.info('Saved as optimized PNG')
+
         img_buffer.seek(0)
 
         # Draw image on canvas

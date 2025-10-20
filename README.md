@@ -105,7 +105,9 @@ This endpoint converts images directly to PDF without using HTML. Supports all i
   "filename": "photo.pdf",
   "page_size": "A4",
   "fit": "contain",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "max_dimension": 2400,
+  "quality": 85
 }
 ```
 
@@ -118,6 +120,8 @@ This endpoint converts images directly to PDF without using HTML. Supports all i
   - `cover`: Fill entire page, may crop image
   - `stretch`: Stretch to fill page (may distort)
 - `orientation` (string, optional): "portrait" or "landscape" (default: "portrait")
+- `max_dimension` (integer, optional): Maximum width/height in pixels (default: 2400). Set to 0 to disable resizing. Images larger than this will be scaled down proportionally.
+- `quality` (integer, optional): JPEG compression quality from 1-100 (default: 85). Higher = better quality but larger file. Only applies to photos (RGB/grayscale images).
 
 **Supported Image Formats:**
 - ✅ **HEIC/HEIF** (Apple iPhone photos)
@@ -158,8 +162,9 @@ This endpoint converts images directly to PDF without using HTML. Supports all i
 **Special Features:**
 - **EXIF Orientation Handling**: Automatically rotates iPhone and camera photos based on EXIF metadata
 - **Color Space Conversion**: Converts RGBA, CMYK, and other color modes to RGB
-- **High Quality**: Maintains image quality during conversion
-- **Smart Scaling**: Automatically scales large images to fit page while maintaining aspect ratio
+- **Configurable Quality**: Control JPEG compression quality (1-100%) to balance file size and image quality
+- **Smart Scaling**: Automatically resizes large images based on max_dimension parameter to reduce file size
+- **Format Optimization**: Uses JPEG compression for photos and PNG for graphics with transparency
 
 **HTTP Status:** `200 OK` on success, `400 Bad Request` for invalid image data, `500 Internal Server Error` for processing errors
 
@@ -682,7 +687,9 @@ curl -X POST http://localhost:5000/image-to-pdf \
     \"filename\": \"photo.pdf\",
     \"page_size\": \"A4\",
     \"fit\": \"contain\",
-    \"orientation\": \"portrait\"
+    \"orientation\": \"portrait\",
+    \"max_dimension\": 2400,
+    \"quality\": 85
   }"
 ```
 
@@ -721,9 +728,15 @@ curl -X POST http://localhost:5000/generate-complete \
   "filename": "={{ $json.name }}.pdf",
   "page_size": "A4",
   "fit": "contain",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "max_dimension": 2400,
+  "quality": 85
 }
 ```
+
+**Parameters:**
+- `max_dimension`: Maximum image size in pixels (default: 2400). Use lower values (e.g., 1200) for smaller files.
+- `quality`: JPEG quality 1-100 (default: 85). Use 70-80 for smaller files, 90-95 for high quality.
 
 **Use Case:** Convert HEIC, PNG, JPEG images from Google Drive to PDF
 
