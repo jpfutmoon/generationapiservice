@@ -1,13 +1,25 @@
-# ZUGFeRD API Service
+# ZUGFeRD API Service & PDF Manipulation Tools
 
-Microservice for generating PDFs and ZUGFeRD-compliant PDFs for n8n workflows.
+Comprehensive microservice for generating PDFs, ZUGFeRD-compliant invoices, and advanced PDF manipulation for n8n workflows.
 
 ## Features
 
+### ZUGFeRD & Invoice Generation
 - ✅ **PDF Generation** from HTML/CSS
 - ✅ **ZUGFeRD Embedding** - Add XML to existing PDFs
 - ✅ **Complete Workflow** - Generate PDF + ZUGFeRD in one step
+
+### PDF Manipulation
+- ✅ **Merge PDFs** - Combine multiple PDFs into one
+- ✅ **Split PDFs** - Extract pages or split by ranges
+- ✅ **Compress PDFs** - Reduce file size with quality control
+- ✅ **Watermarking** - Add text watermarks with customization
+- ✅ **Text Extraction** - Extract text from PDFs
+- ✅ **Metadata** - Get PDF information and properties
+
+### Infrastructure
 - ✅ REST API for n8n integration
+- ✅ Accepts both JSON and form data
 - ✅ Docker-ready with health checks
 - ✅ Production-ready with Gunicorn
 
@@ -178,22 +190,325 @@ This endpoint combines both functions: first generates a PDF from HTML/CSS, then
 
 ---
 
+## PDF Manipulation Endpoints
+
+### `POST /pdf/merge`
+**Merge Multiple PDFs** - Combine multiple PDF files into one document
+
+**Description:**
+Merges 2 or more PDF files into a single PDF while maintaining all pages and content.
+
+**Request Body (JSON or Form Data):**
+```json
+{
+  "pdfs": ["base64_pdf1", "base64_pdf2", "base64_pdf3"],
+  "filename": "merged_document.pdf"
+}
+```
+
+**Parameters:**
+- `pdfs` (array, **required**): Array of base64-encoded PDF files (minimum 2)
+- `filename` (string, optional): Output filename (default: "merged.pdf")
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "pdf_base64": "JVBERi0xLjQKJe...",
+  "pdf_size": 125890,
+  "filename": "merged_document.pdf",
+  "page_count": 15
+}
+```
+
+**Use Cases:**
+- Combine monthly invoices into one file
+- Merge invoice with attachments or delivery notes
+- Create combined reports
+
+---
+
+### `POST /pdf/split`
+**Split PDF** - Split PDF into multiple files or extract specific pages
+
+**Description:**
+Extracts specific pages or ranges from a PDF, creating separate PDF files.
+
+**Request Body (JSON or Form Data):**
+```json
+{
+  "pdf_base64": "JVBERi0xLjQKJe...",
+  "mode": "pages",
+  "pages": [1, 3, 5],
+  "filename_prefix": "invoice"
+}
+```
+
+**OR for page ranges:**
+```json
+{
+  "pdf_base64": "JVBERi0xLjQKJe...",
+  "mode": "ranges",
+  "ranges": [[1, 3], [4, 6], [7, 10]],
+  "filename_prefix": "section"
+}
+```
+
+**Parameters:**
+- `pdf_base64` (string, **required**): Base64-encoded PDF
+- `mode` (string): "pages" or "ranges" (default: "pages")
+- `pages` (array): Array of page numbers to extract (for mode="pages")
+- `ranges` (array): Array of [start, end] page ranges (for mode="ranges")
+- `filename_prefix` (string, optional): Prefix for output files (default: "split")
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "pdfs": [
+    {
+      "pdf_base64": "JVBERi0...",
+      "filename": "invoice_page_1.pdf",
+      "pages": [1],
+      "size": 15230
+    },
+    {
+      "pdf_base64": "JVBERi0...",
+      "filename": "invoice_page_3.pdf",
+      "pages": [3],
+      "size": 14890
+    }
+  ],
+  "total_pages": 10,
+  "split_count": 2
+}
+```
+
+**Use Cases:**
+- Extract individual invoices from batch file
+- Separate cover pages from main document
+- Split multi-page documents for processing
+
+---
+
+### `POST /pdf/extract-text`
+**Extract Text from PDF** - Extract text content from PDF pages
+
+**Description:**
+Extracts all text from a PDF, optionally from specific pages. Returns both full text and per-page text.
+
+**Request Body (JSON or Form Data):**
+```json
+{
+  "pdf_base64": "JVBERi0xLjQKJe...",
+  "pages": [1, 2, 3]
+}
+```
+
+**Parameters:**
+- `pdf_base64` (string, **required**): Base64-encoded PDF
+- `pages` (array or "all", optional): Page numbers to extract or "all" (default: all)
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "text": "Invoice No. 2024-001\n\nDate: 2024-01-15...",
+  "pages": {
+    "page_1": "Invoice No. 2024-001...",
+    "page_2": "Items:\n1. Product A..."
+  },
+  "total_pages": 2,
+  "character_count": 1523
+}
+```
+
+**Use Cases:**
+- Validate invoice content
+- Search for specific text in documents
+- Extract data for processing
+- Archive text content
+
+---
+
+### `POST /pdf/metadata`
+**Get PDF Metadata** - Extract PDF properties and information
+
+**Description:**
+Returns detailed metadata about the PDF including page count, dimensions, metadata fields, and encryption status.
+
+**Request Body (JSON or Form Data):**
+```json
+{
+  "pdf_base64": "JVBERi0xLjQKJe..."
+}
+```
+
+**Parameters:**
+- `pdf_base64` (string, **required**): Base64-encoded PDF
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "metadata": {
+    "/Title": "Invoice 2024-001",
+    "/Author": "futalis GmbH",
+    "/Creator": "Microsoft Word",
+    "/CreationDate": "D:20240115120000"
+  },
+  "page_count": 3,
+  "pages": [
+    {
+      "page_number": 1,
+      "width": 595.0,
+      "height": 842.0,
+      "rotation": 0
+    }
+  ],
+  "file_size": 45820,
+  "encrypted": false
+}
+```
+
+**Use Cases:**
+- Validate PDF properties
+- Check document author/creator
+- Verify page dimensions
+- Audit document information
+
+---
+
+### `POST /pdf/watermark`
+**Add Watermark** - Add text watermark to PDF pages
+
+**Description:**
+Adds a customizable text watermark to all pages of a PDF. Supports diagonal or centered positioning with adjustable opacity, size, and color.
+
+**Request Body (JSON or Form Data):**
+```json
+{
+  "pdf_base64": "JVBERi0xLjQKJe...",
+  "text": "CONFIDENTIAL",
+  "opacity": 0.3,
+  "position": "diagonal",
+  "font_size": 60,
+  "color": "gray",
+  "filename": "watermarked_invoice.pdf"
+}
+```
+
+**Parameters:**
+- `pdf_base64` (string, **required**): Base64-encoded PDF
+- `text` (string, **required**): Watermark text
+- `opacity` (float, optional): Transparency 0-1 (default: 0.3)
+- `position` (string, optional): "diagonal" or "center" (default: "diagonal")
+- `font_size` (integer, optional): Font size in points (default: 60)
+- `color` (string, optional): "gray", "red", "blue", "black" (default: "gray")
+- `filename` (string, optional): Output filename (default: "watermarked.pdf")
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "pdf_base64": "JVBERi0xLjQKJe...",
+  "pdf_size": 48230,
+  "filename": "watermarked_invoice.pdf",
+  "pages_processed": 3
+}
+```
+
+**Use Cases:**
+- Mark invoices as "PAID" or "DRAFT"
+- Add "CONFIDENTIAL" to sensitive documents
+- Add company branding or stamps
+- Document tracking and security
+
+---
+
+### `POST /pdf/compress`
+**Compress PDF** - Reduce PDF file size
+
+**Description:**
+Compresses PDF to reduce file size with adjustable quality settings. Removes duplicate objects and compresses content streams.
+
+**Request Body (JSON or Form Data):**
+```json
+{
+  "pdf_base64": "JVBERi0xLjQKJe...",
+  "quality": "medium",
+  "filename": "compressed_invoice.pdf"
+}
+```
+
+**Parameters:**
+- `pdf_base64` (string, **required**): Base64-encoded PDF
+- `quality` (string, optional): "high", "medium", or "low" (default: "medium")
+  - `high`: Light compression, best quality
+  - `medium`: Balanced compression
+  - `low`: Maximum compression, smaller file
+- `filename` (string, optional): Output filename (default: "compressed.pdf")
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "pdf_base64": "JVBERi0xLjQKJe...",
+  "original_size": 125890,
+  "compressed_size": 89420,
+  "compression_ratio": 28.95,
+  "filename": "compressed_invoice.pdf"
+}
+```
+
+**Use Cases:**
+- Reduce file size for email attachments
+- Optimize for web viewing
+- Save storage space
+- Meet file size limits
+
+---
+
 ### `GET /`
 **Service Information** - Shows available endpoints and version
 
 **Response:**
 ```json
 {
-  "service": "ZUGFeRD PDF Generator",
-  "version": "2.0.0",
+  "service": "ZUGFeRD PDF Generator & PDF Services",
+  "version": "3.0.0",
   "endpoints": {
-    "health": "GET /health",
+    "health": "GET /health - Health check",
     "test": "GET /test - Test library compatibility",
-    "generate_pdf": "POST /generate-pdf - Generate PDF from HTML",
-    "generate_zugferd": "POST /generate - Add ZUGFeRD XML to existing PDF",
-    "generate_complete": "POST /generate-complete - Generate PDF + ZUGFeRD in one step",
-    "info": "GET /"
-  }
+    "info": "GET / - Service information",
+    "zugferd": {
+      "generate_pdf": "POST /generate-pdf - Generate PDF from HTML",
+      "generate_zugferd": "POST /generate - Add ZUGFeRD XML to existing PDF",
+      "generate_complete": "POST /generate-complete - Generate PDF + ZUGFeRD in one step"
+    },
+    "pdf_manipulation": {
+      "merge": "POST /pdf/merge - Merge multiple PDFs",
+      "split": "POST /pdf/split - Split PDF by pages or ranges",
+      "compress": "POST /pdf/compress - Compress PDF to reduce size"
+    },
+    "pdf_extraction": {
+      "extract_text": "POST /pdf/extract-text - Extract text from PDF",
+      "metadata": "POST /pdf/metadata - Get PDF metadata and info"
+    },
+    "pdf_enhancement": {
+      "watermark": "POST /pdf/watermark - Add watermark to PDF"
+    }
+  },
+  "features": [
+    "ZUGFeRD/Factur-X compliant invoice generation",
+    "HTML to PDF conversion",
+    "PDF merge and split operations",
+    "Text extraction from PDFs",
+    "Watermarking and stamps",
+    "PDF compression",
+    "Metadata extraction",
+    "Accepts both JSON and form data"
+  ]
 }
 ```
 
