@@ -135,11 +135,26 @@ def generate_pdf():
 
         logger.info(f'html_content length: {len(html_content)}, css length: {len(css)}')
 
+        # Log first 500 chars of HTML for debugging
+        if html_content:
+            preview = html_content[:500].replace('\n', '\\n')
+            logger.info(f'HTML preview: {preview}...')
+
         if not html_content:
             return jsonify({
                 'success': False,
                 'error': 'html_content ist erforderlich'
             }), 400
+
+        # Clean up HTML content - remove leading/trailing whitespace
+        html_content = html_content.strip()
+
+        # Validate HTML has basic structure
+        if not ('<html' in html_content.lower() or '<body' in html_content.lower() or '<div' in html_content.lower()):
+            logger.warning(f'HTML content may be incomplete or malformed')
+            # Try wrapping bare content in HTML structure
+            if not html_content.startswith('<'):
+                html_content = f'<html><body>{html_content}</body></html>'
 
         # Generate PDF from HTML
         logger.info('Creating HTML object...')
@@ -296,6 +311,56 @@ def test():
         results['tests']['lxml'] = f'FAILED: {str(e)}'
 
     return jsonify(results), 200
+
+@app.route('/test-pdf-generation', methods=['GET'])
+def test_pdf_generation():
+    """Test endpoint that generates a simple PDF to verify PDF generation works"""
+    try:
+        # Simple test HTML
+        test_html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 40px; }
+                h1 { color: #333; }
+                .info { background: #f0f0f0; padding: 20px; margin: 20px 0; }
+            </style>
+        </head>
+        <body>
+            <h1>PDF Generation Test</h1>
+            <p>If you can see this, WeasyPrint is working correctly!</p>
+            <div class="info">
+                <strong>Service:</strong> ZUGFeRD API<br>
+                <strong>Version:</strong> 3.0.0<br>
+                <strong>Test Time:</strong> """ + str(base64.b64encode(b'test').decode()) + """
+            </div>
+            <p>This is a test paragraph with some <strong>bold text</strong> and <em>italic text</em>.</p>
+        </body>
+        </html>
+        """
+
+        from weasyprint import HTML
+        html_obj = HTML(string=test_html)
+        pdf_bytes = html_obj.write_pdf()
+
+        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+
+        return jsonify({
+            'success': True,
+            'message': 'PDF generation test successful',
+            'pdf_base64': pdf_base64,
+            'pdf_size': len(pdf_bytes),
+            'html_used': test_html[:100] + '...'
+        }), 200
+
+    except Exception as e:
+        logger.error(f'PDF generation test failed: {str(e)}', exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'PDF generation is not working'
+        }), 500
 
 @app.route('/pdf/merge', methods=['POST'])
 def merge_pdfs():
@@ -808,6 +873,7 @@ def index():
         'endpoints': {
             'health': 'GET /health - Health check',
             'test': 'GET /test - Test library compatibility',
+            'test_pdf': 'GET /test-pdf-generation - Test PDF generation',
             'info': 'GET / - Service information',
             'zugferd': {
                 'generate_pdf': 'POST /generate-pdf - Generate PDF from HTML',
