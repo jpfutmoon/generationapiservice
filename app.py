@@ -425,6 +425,14 @@ def image_to_pdf():
         try:
             img = Image.open(BytesIO(image_bytes))
 
+            # Handle EXIF orientation (important for iPhone photos)
+            try:
+                from PIL import ImageOps
+                img = ImageOps.exif_transpose(img)
+                logger.info('Applied EXIF orientation correction')
+            except Exception as e:
+                logger.warning(f'Could not apply EXIF orientation: {str(e)}')
+
             # Convert to RGB if necessary (for RGBA, CMYK, etc.)
             if img.mode not in ('RGB', 'L'):
                 logger.info(f'Converting image from {img.mode} to RGB')
