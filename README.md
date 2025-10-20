@@ -6,6 +6,7 @@ Comprehensive microservice for generating PDFs, ZUGFeRD-compliant invoices, and 
 
 ### ZUGFeRD & Invoice Generation
 - ✅ **PDF Generation** from HTML/CSS
+- ✅ **Image to PDF** - Direct conversion supporting HEIC, PNG, JPEG, and all formats
 - ✅ **ZUGFeRD Embedding** - Add XML to existing PDFs
 - ✅ **Complete Workflow** - Generate PDF + ZUGFeRD in one step
 
@@ -84,6 +85,101 @@ This endpoint generates a standards-compliant PDF from HTML content. Ideal for c
 - Generate invoices from HTML templates
 - Export reports as PDF
 - Create delivery notes or quotes
+
+**Note:** For converting images to PDF, use `/image-to-pdf` instead - it's more reliable and supports all image formats including HEIC.
+
+---
+
+### `POST /image-to-pdf`
+**Convert Image to PDF** - Direct image-to-PDF conversion supporting all formats including HEIC
+
+**Description:**
+This endpoint converts images directly to PDF without using HTML. Supports all image formats including Apple's HEIC format from iPhone photos. Uses Pillow + reportlab for high-quality conversion with proper EXIF orientation handling.
+
+**Accepts both JSON and form data.**
+
+**Request Body (JSON or Form Data):**
+```json
+{
+  "image_base64": "base64_encoded_image_data",
+  "filename": "photo.pdf",
+  "page_size": "A4",
+  "fit": "contain",
+  "orientation": "portrait"
+}
+```
+
+**Parameters:**
+- `image_base64` (string, **required**): Base64-encoded image in any format
+- `filename` (string, optional): Output PDF filename (default: "image.pdf")
+- `page_size` (string, optional): "A4", "Letter", or "A3" (default: "A4")
+- `fit` (string, optional): How to fit image on page (default: "contain")
+  - `contain`: Fit image within page, maintain aspect ratio (no cropping)
+  - `cover`: Fill entire page, may crop image
+  - `stretch`: Stretch to fill page (may distort)
+- `orientation` (string, optional): "portrait" or "landscape" (default: "portrait")
+
+**Supported Image Formats:**
+- ✅ **HEIC/HEIF** (Apple iPhone photos)
+- ✅ PNG (with transparency support)
+- ✅ JPEG/JPG
+- ✅ GIF
+- ✅ WebP
+- ✅ TIFF
+- ✅ BMP
+- ✅ All Pillow-supported formats
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "pdf_base64": "JVBERi0xLjQKJe...",
+  "pdf_size": 145820,
+  "filename": "photo.pdf",
+  "image_dimensions": {
+    "width": 4032,
+    "height": 3024
+  },
+  "page_dimensions": {
+    "width": 595.0,
+    "height": 842.0
+  }
+}
+```
+
+**Response Fields:**
+- `success` (boolean): `true` on success
+- `pdf_base64` (string): Base64-encoded PDF
+- `pdf_size` (integer): Size of PDF in bytes
+- `filename` (string): Output PDF filename
+- `image_dimensions` (object): Original image width and height in pixels
+- `page_dimensions` (object): PDF page width and height in points
+
+**Special Features:**
+- **EXIF Orientation Handling**: Automatically rotates iPhone and camera photos based on EXIF metadata
+- **Color Space Conversion**: Converts RGBA, CMYK, and other color modes to RGB
+- **High Quality**: Maintains image quality during conversion
+- **Smart Scaling**: Automatically scales large images to fit page while maintaining aspect ratio
+
+**HTTP Status:** `200 OK` on success, `400 Bad Request` for invalid image data, `500 Internal Server Error` for processing errors
+
+**Use Cases:**
+- Convert iPhone HEIC photos to PDF
+- Process scanned documents (PNG, JPEG, TIFF)
+- Create PDFs from screenshots
+- Archive photos as PDFs
+- Convert images for invoice attachments
+
+**Example with n8n:**
+```json
+{
+  "image_base64": "={{ $binary.data.data }}",
+  "filename": "={{ $json.originalFilename }}.pdf",
+  "page_size": "A4",
+  "fit": "contain",
+  "orientation": "portrait"
+}
+```
 
 ---
 
@@ -483,6 +579,7 @@ Compresses PDF to reduce file size with adjustable quality settings. Removes dup
     "info": "GET / - Service information",
     "zugferd": {
       "generate_pdf": "POST /generate-pdf - Generate PDF from HTML",
+      "image_to_pdf": "POST /image-to-pdf - Convert image to PDF (supports HEIC, PNG, JPEG, etc.)",
       "generate_zugferd": "POST /generate - Add ZUGFeRD XML to existing PDF",
       "generate_complete": "POST /generate-complete - Generate PDF + ZUGFeRD in one step"
     },
@@ -573,6 +670,22 @@ curl -X POST http://localhost:5000/generate-pdf \
   }'
 ```
 
+**Convert Image to PDF (supports HEIC):**
+```bash
+# First, encode your image to base64
+IMAGE_BASE64=$(base64 -w 0 photo.heic)
+
+curl -X POST http://localhost:5000/image-to-pdf \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"image_base64\": \"$IMAGE_BASE64\",
+    \"filename\": \"photo.pdf\",
+    \"page_size\": \"A4\",
+    \"fit\": \"contain\",
+    \"orientation\": \"portrait\"
+  }"
+```
+
 **Add ZUGFeRD to existing PDF:**
 ```bash
 curl -X POST http://localhost:5000/generate \
@@ -597,7 +710,24 @@ curl -X POST http://localhost:5000/generate-complete \
 
 ### n8n Integration
 
-#### Workflow 1: Generate PDF only
+#### Workflow 1: Convert Image to PDF (Recommended for images)
+**HTTP Request Node:**
+- Method: POST
+- URL: `http://zugferd-api:5000/image-to-pdf`
+- Body: Form-Data or JSON
+```json
+{
+  "image_base64": "={{ $binary.data.data }}",
+  "filename": "={{ $json.name }}.pdf",
+  "page_size": "A4",
+  "fit": "contain",
+  "orientation": "portrait"
+}
+```
+
+**Use Case:** Convert HEIC, PNG, JPEG images from Google Drive to PDF
+
+#### Workflow 2: Generate PDF from HTML
 **HTTP Request Node:**
 - Method: POST
 - URL: `http://zugferd-api:5000/generate-pdf`
@@ -610,7 +740,7 @@ curl -X POST http://localhost:5000/generate-complete \
 }
 ```
 
-#### Workflow 2: PDF + ZUGFeRD in one step
+#### Workflow 3: PDF + ZUGFeRD in one step
 **HTTP Request Node:**
 - Method: POST
 - URL: `http://zugferd-api:5000/generate-complete`
