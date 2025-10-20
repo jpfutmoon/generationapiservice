@@ -104,7 +104,9 @@ def generate_pdf():
     """
     Generate PDF from HTML content
 
-    Expected JSON body:
+    Accepts both JSON and form data.
+
+    Expected body (JSON or form data):
     {
         "html_content": "HTML string or template",
         "css": "optional CSS string",
@@ -113,11 +115,19 @@ def generate_pdf():
     """
     try:
         logger.info('=== generate_pdf called ===')
-        data = request.get_json()
+
+        # Accept both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+            logger.info('Request type: JSON')
+        else:
+            data = request.form.to_dict()
+            logger.info('Request type: Form data')
+
         logger.info(f'Request data keys: {data.keys() if data else "None"}')
 
         if not data:
-            return jsonify({'success': False, 'error': 'JSON body required'}), 400
+            return jsonify({'success': False, 'error': 'Request body required (JSON or form data)'}), 400
 
         html_content = data.get('html_content', '')
         css = data.get('css', '')
